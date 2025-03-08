@@ -356,13 +356,37 @@ def render_textblock_list_eng(
     """
 
     def calculate_font_values(font_size: int, words: List[str]):
-        font_size = int(font_size)
+        # Ensure font_size is a proper integer
+        try:
+            font_size = int(font_size)
+        except (TypeError, ValueError):
+            # Fallback to a safe default if conversion fails
+            font_size = 20  # Increased for better readability
+        
+        # Limit font size to reasonable values for readability
+        # Too small text is hard to read, too large looks disproportionate
+        font_size = max(14, min(font_size, 32))  # Increased minimum and maximum for better readability
+        
+        # More balanced adjustment to prevent overflow while ensuring visibility
+        if len(words) > 0:
+            # Apply a reduction factor based on word count, but more balanced
+            reduction_factor = 1.0
+            if len(words) > 20:  # Only reduce for longer text
+                reduction_factor = 0.92  # Less aggressive reduction (8%)
+            elif len(words) > 35:
+                reduction_factor = 0.88  # Less aggressive reduction (12%)
+                
+            font_size = max(14, int(font_size * reduction_factor))  # Increased minimum
+            
         sw = int(font_size * stroke_width)
         line_height = int(font_size * 0.8)
         delimiter_glyph = get_char_glyph(delimiter, font_size, 0)
         delimiter_len = delimiter_glyph.advance.x >> 6
         base_length = -1
         word_lengths = []
+        
+        # Calculate approximate total text length to check if it might overflow
+        total_text_length = 0
         for word in words:
             word_length = 0
             for cdpt in word:
@@ -370,17 +394,29 @@ def render_textblock_list_eng(
                 char_offset_x = glyph.metrics.horiAdvance >> 6
                 word_length += char_offset_x
             word_lengths.append(word_length)
+            total_text_length += word_length
             if word_length > base_length:
                 base_length = word_length
+                
         return font_size, sw, line_height, delimiter_len, base_length, word_lengths
 
     img_pil = Image.fromarray(img)
-
 
     # Initialize enlarge ratios
     for region in text_regions:
         region.enlarge_ratio = 1
         region.enlarged_xyxy = region.xyxy.copy()
+        
+        # Check aspect ratio to identify horizontal bars
+        width, height = region.unrotated_size[1], region.unrotated_size[0]
+        is_horizontal_bar = width > height * 3
+        
+        # For horizontal bars, ensure font size is appropriate (double-check)
+        if is_horizontal_bar:
+            # Make sure font size is not too large for horizontal bars
+            max_font_size = int(height * 0.8)
+            if region.font_size > max_font_size:
+                region.font_size = max(12, max_font_size)
 
     def update_enlarged_xyxy(region):
         region.enlarged_xyxy = region.xyxy.copy()
@@ -389,6 +425,13 @@ def render_textblock_list_eng(
         region.enlarged_xyxy[2] += w_diff
         region.enlarged_xyxy[1] -= h_diff
         region.enlarged_xyxy[3] += h_diff
+        
+        # Ensure the enlarged region doesn't go outside the image boundaries
+        img_height, img_width = img.shape[:2]
+        region.enlarged_xyxy[0] = max(0, region.enlarged_xyxy[0])
+        region.enlarged_xyxy[1] = max(0, region.enlarged_xyxy[1])
+        region.enlarged_xyxy[2] = min(img_width, region.enlarged_xyxy[2])
+        region.enlarged_xyxy[3] = min(img_height, region.enlarged_xyxy[3])
 
     # Adjust enlarge ratios relative to each other to reduce intersections
     for region in text_regions:
