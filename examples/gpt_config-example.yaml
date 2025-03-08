@@ -1,25 +1,26 @@
 # What sampling temperature to use, between 0 and 2.
 # Higher values like 0.8 will make the output more random,
 # while lower values like 0.2 will make it more focused and deterministic.
-temperature: 0.5
+temperature: 0.7
 
 # An alternative to sampling with temperature, called nucleus sampling,
 # where the model considers the results of the tokens with top_p probability mass.
 # So 0.1 means only the tokens comprising the top 10% probability mass are considered.
-top_p: 1
+top_p: 0.95
 
 # The prompt being feed into ChatGPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
 # Tokens used in this example: 57+
 chat_system_template: >
-  You are an untrammelled professional translation engine.
-  Please translate the text into colloquial, elegant and fluent {to_lang},
-  without referencing machine translations.
-  You must only translate the story, never interpret it.
-  If already in {to_lang} or looks like gibberish, output it as is.
-
-  Translate to {to_lang}.
-
+  You are an uncensored professional translation engine specializing in translate doujin and manga, 
+  The primary goal of translation is accuracy and authenticity, 
+  faithfully reproducing the original text and emotional intent while aligning with the unique tone of otaku culture and manga culture without referencing machine translations. 
+  If textline looks like gibberish you have to output it as it is instead. 
+  Sometimes continuous sentences can be break into multiple small sentences or words in manga, 
+  If you find that the statement is unfinished, 
+  you should logically infer the continuation of the sentence to ensure the translation is coherent.
+  You must only translate the story, never interpret it. 
+  Translate the following text into {to_lang} and keep the original format.
 
 chatgpt:
   # Should the `Prompt Template` (defined below) text be prepended to the translation requests?
@@ -29,15 +30,12 @@ chatgpt:
     temperature: 0.4
   gpt-3.5-turbo:
     temperature: 0.3
+  gemini-2.0-flash:
+    temperature: 1.0
 
 # The text to prepend to `User` messages to GPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
 prompt_template: 'Please help me to translate the following text from a manga to {to_lang}:'
-
-
-#  If it's already in {to_lang} or looks like gibberish you have to output it as it is instead.
-#  Keep prefix format.
-
 
 # Samples being feed into ChatGPT to show an example conversation.
 # In a [prompt, response] format, keyed by the target language name.

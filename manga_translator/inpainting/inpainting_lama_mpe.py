@@ -98,7 +98,7 @@ class LamaMPEInpainter(OfflineInpainter):
                 # but it can inference under torch.autocast
 
                 precision = TORCH_DTYPE_MAP[str(config.inpainting_precision)]
-                
+
                 if precision == torch.float16:
                     precision = torch.bfloat16
                     self.logger.warning('Switch to bf16 due to Lama only compatible with bf16 and fp32.')
@@ -114,7 +114,7 @@ class LamaMPEInpainter(OfflineInpainter):
             img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR)
         ans = img_inpainted * mask_original + img_original * (1 - mask_original)
         return ans
-    
+
 
 class LamaLargeInpainter(LamaMPEInpainter):
 
@@ -603,7 +603,7 @@ class FFCResNetGenerator(nn.Module):
         if rel_pos is None:
             return self.model(masked_img)
         else:
-            
+
             x_l, x_g = self.model[:2](masked_img)
             x_l = x_l.to(torch.float32)
             x_l += rel_pos
@@ -638,8 +638,8 @@ class LamaFourier:
         n_blocks = 9
         if large_arch:
             n_blocks = 18
-        
-        self.generator = FFCResNetGenerator(4, 3, add_out_act='sigmoid', 
+
+        self.generator = FFCResNetGenerator(4, 3, add_out_act='sigmoid',
                             n_blocks = n_blocks,
                             init_conv_kwargs={
                             'ratio_gin': 0,
@@ -653,9 +653,9 @@ class LamaFourier:
                             'ratio_gin': 0.75,
                             'ratio_gout': 0.75,
                             'enable_lfu': False
-                        }, 
+                        },
                     )
-        
+
         self.discriminator = NLayerDiscriminator() if build_discriminator else None
         self.inpaint_only = False
         if use_mpe:
@@ -734,15 +734,15 @@ class LamaFourier:
 
         if self.forward_discriminator:
             return  {
-                'predicted_img': predicted_img, 
-                'discr_real_pred': discr_real_pred, 
+                'predicted_img': predicted_img,
+                'discr_real_pred': discr_real_pred,
                 'discr_fake_pred':discr_fake_pred
             }
         else:
             return  {
-                'predicted_img': predicted_img, 
-                'discr_real_features': discr_real_features, 
-                'discr_fake_features': discr_fake_features, 
+                'predicted_img': predicted_img,
+                'discr_real_features': discr_real_features,
+                'discr_fake_features': discr_fake_features,
                 'discr_fake_pred': discr_fake_pred
             }
 

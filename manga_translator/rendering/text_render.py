@@ -197,15 +197,82 @@ class Glyph:
 @functools.lru_cache(maxsize = 1024, typed = True)
 def get_char_glyph(cdpt: str, font_size: int, direction: int) -> Glyph:
     global FONT_SELECTION
+    # Ensure font_size is a valid integer
+    try:
+        font_size = int(font_size)
+        if font_size <= 0:
+            font_size = 24  # Safe default
+    except (TypeError, ValueError):
+        font_size = 24  # Safe default
+    
+    # Ensure direction is a valid integer (0 or 1)
+    try:
+        direction = int(direction)
+        if direction not in [0, 1]:
+            direction = 0  # Default to horizontal
+    except (TypeError, ValueError):
+        direction = 0  # Default to horizontal
+        
     for i, face in enumerate(FONT_SELECTION):
         if face.get_char_index(cdpt) == 0 and i != len(FONT_SELECTION) - 1:
             continue
-        if direction == 0:
-            face.set_pixel_sizes(0, font_size)
-        elif direction == 1:
-            face.set_pixel_sizes(font_size, 0)
-        face.load_char(cdpt)
-        return Glyph(face.glyph)
+        
+        try:
+            if direction == 0:
+                face.set_pixel_sizes(0, font_size)
+            elif direction == 1:
+                face.set_pixel_sizes(font_size, 0)
+            face.load_char(cdpt)
+            return Glyph(face.glyph)
+        except Exception as e:
+            # If there's any error, try a safe fallback
+            if i == len(FONT_SELECTION) - 1:  # Last attempt
+                try:
+                    face.set_pixel_sizes(0, 24)  # Safe default size
+                    face.load_char(cdpt)
+                    return Glyph(face.glyph)
+                except:
+                    # Create a minimal empty glyph as a last resort
+                    empty_metrics = namespace()
+                    empty_metrics.horiAdvance = 24 << 6
+                    empty_metrics.vertAdvance = 24 << 6
+                    empty_metrics.horiBearingX = 0
+                    empty_metrics.horiBearingY = 0
+                    empty_metrics.vertBearingX = 0
+                    empty_metrics.vertBearingY = 0
+                    
+                    empty_glyph = namespace()
+                    empty_glyph.metrics = empty_metrics
+                    empty_glyph.bitmap = namespace()
+                    empty_glyph.bitmap.buffer = bytearray()
+                    empty_glyph.bitmap.rows = 0
+                    empty_glyph.bitmap.width = 0
+                    empty_glyph.advance = namespace()
+                    empty_glyph.advance.x = 24 << 6
+                    empty_glyph.advance.y = 0
+                    
+                    return Glyph(empty_glyph)
+    
+    # This should never happen as we have a fallback above
+    empty_metrics = namespace()
+    empty_metrics.horiAdvance = 24 << 6
+    empty_metrics.vertAdvance = 24 << 6
+    empty_metrics.horiBearingX = 0
+    empty_metrics.horiBearingY = 0
+    empty_metrics.vertBearingX = 0
+    empty_metrics.vertBearingY = 0
+    
+    empty_glyph = namespace()
+    empty_glyph.metrics = empty_metrics
+    empty_glyph.bitmap = namespace()
+    empty_glyph.bitmap.buffer = bytearray()
+    empty_glyph.bitmap.rows = 0
+    empty_glyph.bitmap.width = 0
+    empty_glyph.advance = namespace()
+    empty_glyph.advance.x = 24 << 6
+    empty_glyph.advance.y = 0
+    
+    return Glyph(empty_glyph)
 
 #@functools.lru_cache(maxsize = 1024, typed = True)
 def get_char_border(cdpt: str, font_size: int, direction: int):
@@ -740,8 +807,8 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
 #     pass
 
 def test():
-    #canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉。', 700, (0, 0, 0), (255, 128, 128))
-    canvas = put_text_horizontal(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 400, (0, 0, 0), (255, 128, 128))
+    #canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个"姑娘"的恶作剧！是吗？咲夜⁉。', 700, (0, 0, 0), (255, 128, 128))
+    canvas = put_text_horizontal(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个"姑娘"的恶作剧！是吗？咲夜⁉', 400, (0, 0, 0), (255, 128, 128))
     cv2.imwrite('text_render_combined.png', canvas)
 
 if __name__ == '__main__':

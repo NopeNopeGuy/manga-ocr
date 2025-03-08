@@ -31,18 +31,18 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         r"I must decline",
         r'(i(\'m| am)?\s+)?sorry(.|\n)*?(can(\'t|not)|unable to|cannot)\s+(assist|help)',
         # CHINESE_KEYWORDS (using regex patterns)
-        r"抱歉，?我(无法[将把]?|不[能会]?)", 
-        r"对不起，?我(无法[将把]?|不[能会]?)",  
-        r"我无法(满足|回答|处理|提供)",  
-        r"这超出了我的范围",  
-        r"我不便回答",  
-        r"我不能提供相关建议",  
-        r"这类内容我不能处理",  
-        r"我需要婉拒", 
+        r"抱歉，?我(无法[将把]?|不[能会]?)",
+        r"对不起，?我(无法[将把]?|不[能会]?)",
+        r"我无法(满足|回答|处理|提供)",
+        r"这超出了我的范围",
+        r"我不便回答",
+        r"我不能提供相关建议",
+        r"这类内容我不能处理",
+        r"我需要婉拒",
         r"翻译或生成", #deepseek高频
         # JAPANESE_KEYWORDS
-        r"申し訳ありませんが",    
-        
+        r"申し訳ありませんが",
+
     ]
 
     def __init__(self, check_openai_key=True):
@@ -183,14 +183,14 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             try:
                 # 1) 发起请求
                 response_text = await self._request_with_retry(to_lang, prompt)
-                
+
                 # 2) 解析 response
                 #    直接在这里进行解析 + 校验，不通过则抛异常
                 new_translations = re.split(r'<\|\d+\|>', response_text)
-                
+
                 # 删除正则分割后产生的第一个空串
                 if not new_translations[0].strip():
-                    new_translations = new_translations[1:]              
+                    new_translations = new_translations[1:]
 
                 # 检查风控词，这是整体检测，需要前置
                 if self._cannot_assist(response_text):
@@ -201,7 +201,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 if len(batch_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|1\|>', response_text):
                     self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')
                     continue
-                
+
                 # 如果返回个数小于本批数量，可能需要改用别的拆分方式(比如按行切)
                 if len(new_translations) < len(batch_queries):
                     # 这里演示，简单再按行分隔
@@ -219,7 +219,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                     )
                     # 继续下一次重试
                     continue
-                
+
                 # 去除多余空行、前后空格
                 new_translations = [t.strip() for t in new_translations]
 
@@ -287,16 +287,16 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                     f"Translation failed after max retries and splits. Returning original queries. size={len(batch_queries)}"
                 )
             # 失败的query全部保留
-            for i in range(len(batch_queries)): 
-                partial_results[i] = batch_queries[i]     
-                
+            for i in range(len(batch_queries)):
+                partial_results[i] = batch_queries[i]
+
             return False, partial_results
 
     async def _request_with_retry(self, to_lang: str, prompt: str) -> str:
         """
         结合重试、超时、限流处理的请求入口。
         """
-        # 这里演示3层重试: 
+        # 这里演示3层重试:
         #   1) 如果请求超时 => 重新发起(最多 _TIMEOUT_RETRY_ATTEMPTS 次)
         #   2) 如果返回 429 => 也做重试(最多 _RATELIMIT_RETRY_ATTEMPTS 次)
         #   3) 其他错误 => 重试 _RETRY_ATTEMPTS 次
