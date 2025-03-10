@@ -105,7 +105,24 @@ $ pip install -r requirements.txt
 此 Docker 镜像包含项目所需的所有依赖项和模型。
 请注意，此镜像相当大（约 15GB）。
 
-#### 运行 Web 服务器
+```text
+-h, --help                     show this help message and exit
+-v, --verbose                  Print debug info and save intermediate images in result folder
+--attempts ATTEMPTS            Retry attempts on encountered error. -1 means infinite times.
+--ignore-errors                Skip image on encountered error.
+--model-dir MODEL_DIR          Model directory (by default ./models in project root)
+--use-gpu                      Turn on/off gpu (auto switch between mps and cuda)
+--use-gpu-limited              Turn on/off gpu (excluding offline translator)
+--font-path FONT_PATH          Path to font file
+--pre-dict PRE_DICT            Path to the pre-translation dictionary file
+--post-dict POST_DICT          Path to the post-translation dictionary file
+--kernel-size KERNEL_SIZE      Set the convolution kernel size of the text erasure area to
+                               completely clean up text residues
+--config-file CONFIG_FILE      path to the config file
+--models-ttl MODELS_TTL        How long to keep models in memory in seconds after last use (0 means
+                               forever)
+--concurrency CONCURRENCY      The concurrency of the overall process (including OCR, translation, and image rendering).
+```
 
 可以使用以下命令启动 Web 服务器 (CPU)：
 
