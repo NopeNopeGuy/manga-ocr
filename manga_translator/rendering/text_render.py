@@ -718,30 +718,60 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
 def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
     pen = pen_l.copy()
 
+    # Special handling for apostrophes and quotes
+    if cdpt in ["'", "'", "'", '"', '"', '"']:  # Handle different types of apostrophes
+        cdpt = "'"  # Use standard apostrophe
+    
     cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
     slot = get_char_glyph(cdpt, font_size, 0)
     bitmap = slot.bitmap
     char_offset_x = slot.advance.x >> 6
-    bitmap_char = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
+    
+    # Check if buffer size matches dimensions before reshaping
     if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
         return char_offset_x
+        
+    bitmap_char = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
     pen[0] += slot.bitmap_left
     pen[1] = max(pen[1] - slot.bitmap_top, 0)
-    canvas_text[pen[1]:pen[1]+bitmap.rows, pen[0]:pen[0]+bitmap.width] = bitmap_char
-    #print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
+    
+    # Ensure we don't write outside canvas boundaries
+    if pen[1] >= 0 and pen[1] + bitmap.rows <= canvas_text.shape[0] and \
+       pen[0] >= 0 and pen[0] + bitmap.width <= canvas_text.shape[1]:
+        canvas_text[pen[1]:pen[1]+bitmap.rows, pen[0]:pen[0]+bitmap.width] = bitmap_char
+    
     #border
     if border_size > 0:
         pen_border = (max(pen[0] - border_size, 0), max(pen[1] - border_size, 0))
-        #slot_border = 
-        glyph_border = get_char_border(cdpt, font_size, 1)
-        stroker = freetype.Stroker()
-        stroker.set(64 * max(int(0.07 * font_size), 1), freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
-        glyph_border.stroke(stroker, destroy=True)
-        blyph = glyph_border.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
-        bitmap_b = blyph.bitmap
-        bitmap_border = np.array(bitmap_b.buffer, dtype = np.uint8).reshape(bitmap_b.rows,bitmap_b.width)
-
-        canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
+        
+        try:
+            glyph_border = get_char_border(cdpt, font_size, 0)  # Changed direction to 0 for horizontal text
+            stroker = freetype.Stroker()
+            # Adjust stroke width for small characters
+            stroke_size = max(int(0.07 * font_size), 1)
+            if cdpt in ["'", "'", "'", '"', '"', '"']:  # Special handling for quotes and apostrophes
+                stroke_size = max(stroke_size, 2)  # Ensure minimum stroke size for visibility
+            stroker.set(64 * stroke_size, freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
+            
+            glyph_border.stroke(stroker, destroy=True)
+            blyph = glyph_border.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
+            bitmap_b = blyph.bitmap
+            
+            # Check if border bitmap dimensions are valid
+            if bitmap_b.rows * bitmap_b.width > 0 and len(bitmap_b.buffer) == bitmap_b.rows * bitmap_b.width:
+                bitmap_border = np.array(bitmap_b.buffer, dtype=np.uint8).reshape(bitmap_b.rows, bitmap_b.width)
+                
+                # Ensure we don't write outside canvas boundaries
+                if pen_border[1] >= 0 and pen_border[1] + bitmap_b.rows <= canvas_border.shape[0] and \
+                   pen_border[0] >= 0 and pen_border[0] + bitmap_b.width <= canvas_border.shape[1]:
+                    canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(
+                        canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], 
+                        bitmap_border
+                    )
+        except Exception as e:
+            # If stroking fails for any reason, fall back to just using the regular glyph
+            pass
+            
     return char_offset_x
 
 def put_text_horizontal(font_size: int, text: str, width: int, height: int, alignment: str,
