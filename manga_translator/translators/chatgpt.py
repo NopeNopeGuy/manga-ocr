@@ -388,10 +388,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             raise ValueError("Empty response from OpenAI API")
 
         raw_text = response.choices[0].message.content
-
+        
         # 去除 <think>...</think> 标签及内容。由于某些中转api的模型的思考过程是被强制输出的，并不包含在reasoning_content中，需要额外过滤
         raw_text = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL)
-
         # 删除多余的空行
         cleaned_text = re.sub(r'\n\s*\n', '\n', raw_text).strip()
 

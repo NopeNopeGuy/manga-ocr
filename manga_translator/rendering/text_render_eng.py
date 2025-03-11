@@ -361,22 +361,22 @@ def render_textblock_list_eng(
             font_size = int(font_size)
         except (TypeError, ValueError):
             # Fallback to a safe default if conversion fails
-            font_size = 20  # Increased for better readability
+            font_size = 24  # Increased for better readability
         
         # Limit font size to reasonable values for readability
-        # Too small text is hard to read, too large looks disproportionate
-        font_size = max(14, min(font_size, 32))  # Increased minimum and maximum for better readability
+        # Increased minimum and maximum for better readability
+        font_size = max(16, min(font_size, 36))
         
         # More balanced adjustment to prevent overflow while ensuring visibility
         if len(words) > 0:
             # Apply a reduction factor based on word count, but more balanced
             reduction_factor = 1.0
             if len(words) > 20:  # Only reduce for longer text
-                reduction_factor = 0.92  # Less aggressive reduction (8%)
+                reduction_factor = 0.95  # Less aggressive reduction (5%)
             elif len(words) > 35:
-                reduction_factor = 0.88  # Less aggressive reduction (12%)
+                reduction_factor = 0.90  # Less aggressive reduction (10%)
                 
-            font_size = max(14, int(font_size * reduction_factor))  # Increased minimum
+            font_size = max(16, int(font_size * reduction_factor))  # Increased minimum
             
         sw = int(font_size * stroke_width)
         line_height = int(font_size * 0.8)

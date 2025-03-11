@@ -23,68 +23,123 @@ from ..utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region, ch
 from ..utils.generic import AvgMeter
 
 async def merge_bboxes(bboxes: List[Quadrilateral], width: int, height: int) -> Tuple[List[Quadrilateral], int]:
-    # step 1: divide into multiple text region candidates
+    if not bboxes:
+        return [], []
+    
+    # Fast path for single bbox
+    if len(bboxes) == 1:
+        return bboxes, [[0]]
+    
+    # Create spatial grid for faster neighbor finding
+    # This reduces O(n²) comparison to mostly local comparisons
+    cell_size = min(width, height) / 20  # Adjust this value based on typical text size
+    grid = defaultdict(list)
+    
+    # Map each bbox to grid cells based on its bounds
+    for i, box in enumerate(bboxes):
+        # Get expanded AABB for the box to ensure we catch nearby boxes
+        x_min, y_min = np.min(box.pts, axis=0)
+        x_max, y_max = np.max(box.pts, axis=0)
+        
+        # Calculate which grid cells this box overlaps
+        min_cell_x = max(0, int((x_min - cell_size) / cell_size))
+        max_cell_x = min(int(width / cell_size), int((x_max + cell_size) / cell_size) + 1)
+        min_cell_y = max(0, int((y_min - cell_size) / cell_size))
+        max_cell_y = min(int(height / cell_size), int((y_max + cell_size) / cell_size) + 1)
+        
+        # Add box index to all relevant grid cells
+        for cell_x in range(min_cell_x, max_cell_x):
+            for cell_y in range(min_cell_y, max_cell_y):
+                grid[(cell_x, cell_y)].append(i)
+    
+    # Build graph with spatial optimization
     G = nx.Graph()
     for i, box in enumerate(bboxes):
         G.add_node(i, box=box)
-    for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2):
-        # if quadrilateral_can_merge_region_coarse(ubox, vbox):
-        if quadrilateral_can_merge_region(ubox, vbox, aspect_ratio_tol=1.3, font_size_ratio_tol=2,
-                                          char_gap_tolerance=0.8, char_gap_tolerance2=2.5):
-            G.add_edge(u, v)
+    
+    # Use grid to find potential neighbors
+    processed_pairs = set()
+    for cell, indices in grid.items():
+        # Check all pairs within this cell
+        for i, u in enumerate(indices):
+            ubox = bboxes[u]
+            # Check all other boxes in this cell
+            for v in indices[i+1:]:
+                if (u, v) in processed_pairs:
+                    continue
+                processed_pairs.add((u, v))
+                processed_pairs.add((v, u))
+                
+                vbox = bboxes[v]
+                # First do a fast check on font size ratio before the more expensive check
+                if max(ubox.font_size, vbox.font_size) / min(ubox.font_size, vbox.font_size) <= 2:
+                    if quadrilateral_can_merge_region(ubox, vbox, aspect_ratio_tol=1.3, font_size_ratio_tol=2,
+                                                    char_gap_tolerance=0.8, char_gap_tolerance2=2.5):
+                        G.add_edge(u, v)
 
-    # step 2: postprocess - further split each region
+    # Step 2: Postprocess - further split each region
     region_indices: List[Set[int]] = []
     for node_set in nx.algorithms.components.connected_components(G):
          region_indices.extend(split_text_region(bboxes, node_set, width, height))
 
-    # step 3: return regions
+    # Step 3: Return regions
     merge_box = []
     merge_idx = []
     for node_set in region_indices:
-    # for node_set in nx.algorithms.components.connected_components(G):
         nodes = list(node_set)
         txtlns: List[Quadrilateral] = np.array(bboxes)[nodes]
 
-        # majority vote for direction
+        # Majority vote for direction
         dirs = [box.direction for box in txtlns]
         majority_dir_top_2 = Counter(dirs).most_common(2)
-        if len(majority_dir_top_2) == 1 :
+        
+        # Optimize the majority direction calculation
+        if len(majority_dir_top_2) == 1:
             majority_dir = majority_dir_top_2[0][0]
-        elif majority_dir_top_2[0][1] == majority_dir_top_2[1][1] : # if top 2 have the same counts
+        elif majority_dir_top_2[0][1] == majority_dir_top_2[1][1]:  # if top 2 have the same counts
+            # Find the box with the maximum aspect ratio as it's likely more representative
             max_aspect_ratio = -100
-            for box in txtlns :
-                if box.aspect_ratio > max_aspect_ratio :
-                    max_aspect_ratio = box.aspect_ratio
+            majority_dir = None
+            for box in txtlns:
+                aspect = max(box.aspect_ratio, 1.0 / box.aspect_ratio)
+                if aspect > max_aspect_ratio:
+                    max_aspect_ratio = aspect
                     majority_dir = box.direction
-                if 1.0 / box.aspect_ratio > max_aspect_ratio :
-                    max_aspect_ratio = 1.0 / box.aspect_ratio
-                    majority_dir = box.direction
-        else :
+        else:
             majority_dir = majority_dir_top_2[0][0]
 
-        # sort textlines
+        # Sort textlines
         if majority_dir == 'h':
             nodes = sorted(nodes, key=lambda x: bboxes[x].centroid[1])
         elif majority_dir == 'v':
             nodes = sorted(nodes, key=lambda x: -bboxes[x].centroid[0])
         txtlns = np.array(bboxes)[nodes]
-        # yield overall bbox and sorted indices
+        
+        # Yield overall bbox and sorted indices
         merge_box.append(txtlns)
         merge_idx.append(nodes)
 
     return_box = []
+    # Process boxes and merge them
     for bbox in merge_box:
         if len(bbox) == 1:
             return_box.append(bbox[0])
         else:
-            prob = [q.prob for q in bbox]
-            prob = sum(prob)/len(prob)
+            # Calculate average probability
+            prob = sum(q.prob for q in bbox) / len(bbox)
+            
+            # Merge boxes efficiently
             base_box = bbox[0]
-            for box in bbox[1:]:
-                min_rect = np.array(Polygon([*base_box.pts, *box.pts]).minimum_rotated_rectangle.exterior.coords[:4])
+            if len(bbox) > 1:
+                # Create a single polygon from all points to find minimum rectangle
+                all_pts = []
+                for box in bbox:
+                    all_pts.extend(box.pts)
+                min_rect = np.array(Polygon(all_pts).minimum_rotated_rectangle.exterior.coords[:4])
                 base_box = Quadrilateral(min_rect, '', prob)
+            
             return_box.append(base_box)
+    
     return return_box, merge_idx
 
 class ModelMangaOCR(OfflineOCR):
