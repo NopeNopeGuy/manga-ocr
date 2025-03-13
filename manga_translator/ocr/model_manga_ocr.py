@@ -13,7 +13,8 @@ from shapely.geometry import Polygon
 
 import torch
 
-from manga_ocr import MangaOcr
+# Replace MangaOcr import with our own implementation
+from .manga_ocr_inference import MangaOCR
 
 from .common import OfflineOCR
 from .model_48px import OCR
@@ -152,6 +153,10 @@ class ModelMangaOCR(OfflineOCR):
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/alphabet-all-v7.txt',
             'hash': 'f5722368146aa0fbcc9f4726866e4efc3203318ebb66c811d8cbbe915576538a',
         },
+        'onnx_model': {
+            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/quantized_model.onnx',  # Update with correct URL
+            'hash': '',  # Update with correct hash
+        },
     }
 
     def __init__(self, *args, **kwargs):
@@ -160,17 +165,25 @@ class ModelMangaOCR(OfflineOCR):
             shutil.move('ocr_ar_48px.ckpt', self._get_file_path('ocr_ar_48px.ckpt'))
         if os.path.exists('alphabet-all-v7.txt'):
             shutil.move('alphabet-all-v7.txt', self._get_file_path('alphabet-all-v7.txt'))
+        if os.path.exists('quantized_model.onnx'):
+            shutil.move('quantized_model.onnx', self._get_file_path('quantized_model.onnx'))
         super().__init__(*args, **kwargs)
 
     async def _load(self, device: str):
         with open(self._get_file_path('alphabet-all-v7.txt'), 'r', encoding = 'utf-8') as fp:
             dictionary = [s[:-1] for s in fp.readlines()]
 
+        # Keep the original OCR model for backward compatibility
         self.model = OCR(dictionary, 768)
-        self.mocr = MangaOcr()
         sd = torch.load(self._get_file_path('ocr_ar_48px.ckpt'))
         self.model.load_state_dict(sd)
         self.model.eval()
+        
+        # Initialize the ONNX model instead of the original MangaOcr
+        onnx_model_path = self._get_file_path('quantized_model.onnx')
+        vocab_path = self._get_file_path('vocab.txt')
+        self.mocr = MangaOCR(onnx_model_path, vocab_path)
+        
         self.device = device
         if (device == 'cuda' or device == 'mps'):
             self.use_gpu = True
@@ -178,7 +191,6 @@ class ModelMangaOCR(OfflineOCR):
             self.use_gpu = False
         if self.use_gpu:
             self.model = self.model.to(device)
-
 
     async def _unload(self):
         del self.model
@@ -213,8 +225,15 @@ class ModelMangaOCR(OfflineOCR):
                 merged_text_height = q.aabb.h
                 merged_d = 'h'
             merged_region_imgs.append(q.get_transformed_region(image, merged_d, merged_text_height))
+            
+        # Save the images to temporary files for ONNX model inference
         for idx in range(len(merged_region_imgs)):
-            texts[idx] = self.mocr(Image.fromarray(merged_region_imgs[idx]))
+            temp_img_path = f'temp_ocr_region_{idx}.png'
+            Image.fromarray(merged_region_imgs[idx]).save(temp_img_path)
+            texts[idx] = self.mocr(temp_img_path)
+            # Remove temporary files after processing
+            if os.path.exists(temp_img_path):
+                os.remove(temp_img_path)
 
         ix = 0
         out_regions = {}
