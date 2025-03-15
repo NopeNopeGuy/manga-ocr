@@ -9,7 +9,7 @@ from ..utils import TextBlock, rect_distance
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-PUNSET_RIGHT_ENG = {'.', '?', '!', ':', ';', ')', '}', '"', '\''}
+PUNSET_RIGHT_ENG = {'.', '?', '!', ':', ';', ')', '}', '"', '\'', '’'}
 
 
 class Textline:
@@ -365,7 +365,7 @@ def render_textblock_list_eng(
         
         # Limit font size to reasonable values for readability
         # Increased minimum and maximum for better readability
-        font_size = max(16, min(font_size, 36))
+        font_size = max(16, min(font_size, 44))
         
         # More balanced adjustment to prevent overflow while ensuring visibility
         if len(words) > 0:

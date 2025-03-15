@@ -54,9 +54,9 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List[TextBlock], 
     # Ensure font_size_maximum is a valid integer
     try:
         font_size_maximum = int(font_size_maximum)
-        font_size_maximum = max(32, font_size_maximum)  # Increased maximum
+        font_size_maximum = max(54, font_size_maximum)  # Increased maximum
     except (TypeError, ValueError):
-        font_size_maximum = 32  # Increased default
+        font_size_maximum = 54  # Increased default
     
     # Ensure font_size_offset is a valid integer
     try:
@@ -217,7 +217,7 @@ def render(
 
     if region.horizontal:
         temp_box = text_render.put_text_horizontal(
-            region.font_size,
+            max(region.font_size, 24), # Minimum font size of 24 to prevent too small text on high resolution
             region.get_translation_for_rendering(),
             round(norm_h[0]),
             round(norm_v[0]),
@@ -301,7 +301,7 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
             logger.debug(f"Adjusted font size for horizontal bar: {region.font_size}")
         else:
             # For normal text boxes, use more balanced font sizes
-            region.font_size = min(region.font_size, 32)  # Increased maximum for normal text boxes
+            region.font_size = min(region.font_size, 47)  # Increased maximum for normal text boxes
             
             # More balanced approach to character density
             if char_count > 0 and area > 0:

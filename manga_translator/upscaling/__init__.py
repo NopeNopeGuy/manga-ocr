@@ -5,12 +5,14 @@ from .common import CommonUpscaler, OfflineUpscaler
 from .waifu2x import Waifu2xUpscaler
 from .esrgan import ESRGANUpscaler
 from .esrgan_pytorch import ESRGANUpscalerPytorch
+from .anime4k_onnx import Anime4K_ONNXUpscaler
 from ..config import Upscaler
 
 UPSCALERS = {
     Upscaler.waifu2x: Waifu2xUpscaler,
     Upscaler.esrgan: ESRGANUpscaler,
     Upscaler.upscler4xultrasharp: ESRGANUpscalerPytorch,
+    Upscaler.anime4k_onnx: Anime4K_ONNXUpscaler,
 }
 upscaler_cache = {}
 
