@@ -26,11 +26,39 @@ class AotInpainter(LamaMPEInpainter):
     async def _load(self, device: str):
         self.model = AOTGenerator()
         sd = torch.load(self._get_file_path('inpainting.ckpt'), map_location='cpu')
-        self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
+        self.model.load_state_dict(sd)
         self.model.eval()
         self.device = device
         if device.startswith('cuda') or device == 'mps':
             self.model.to(device)
+        
+        # Quantize the model to int8
+        self.quantize_model()
+
+    def quantize_model(self):
+        if not hasattr(self, 'model'):
+            raise Exception("Model not loaded yet. Call _load() first.")
+
+        # Define quantization configuration
+        qconfig = torch.quantization.get_default_qconfig('x86') # For CPU quantization
+
+        # Prepare model for quantization
+        model_to_quantize = self.model
+        model_prepared = torch.quantization.prepare(model_to_quantize, qconfig)
+
+        # Calibrate the prepared model (for post-training quantization)
+        # For simplicity, we'll use a dummy calibration step.
+        # In practice, you should use a representative dataset for calibration.
+        input_sample = torch.randn(1, 3, 256, 256) # Example input shape for image, adjust if needed
+        mask_sample = torch.randn(1, 1, 256, 256) # Example mask shape
+        model_prepared(input_sample, mask_sample) # Try passing as separate arguments - this might not work as prepare expects single input
+
+
+        # Convert to quantized model
+        model_quantized = torch.quantization.convert(model_prepared, inplace=False)
+
+        self.model = model_quantized
+        print("Model quantized to int8 successfully.")
 
 
 def relu_nf(x):

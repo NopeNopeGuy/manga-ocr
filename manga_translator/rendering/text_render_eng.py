@@ -9,7 +9,7 @@ from ..utils import TextBlock, rect_distance
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-PUNSET_RIGHT_ENG = {'.', '?', '!', ':', ';', ')', '}', "\""}
+PUNSET_RIGHT_ENG = {'.', '?', '!', ':', ';', ')', '}', '"', '\''}
 
 
 class Textline:
@@ -99,7 +99,7 @@ def seg_eng(text: str) -> List[str]:
     """
     # TODO: replace with regexes
 
-    text = text.strip().upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
+    text = text.strip().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
     processed_text = ''
 
     # dumb way to ensure spaces between words
