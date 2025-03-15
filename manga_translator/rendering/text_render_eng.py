@@ -365,7 +365,7 @@ def render_textblock_list_eng(
         
         # Limit font size to reasonable values for readability
         # Increased minimum and maximum for better readability
-        font_size = max(16, min(font_size, 44))
+        font_size = max(16, min(font_size, 64))
         
         # More balanced adjustment to prevent overflow while ensuring visibility
         if len(words) > 0:
@@ -404,19 +404,33 @@ def render_textblock_list_eng(
 
     # Initialize enlarge ratios
     for region in text_regions:
-        region.enlarge_ratio = 1
-        region.enlarged_xyxy = region.xyxy.copy()
+      region.enlarge_ratio = 1
+      region.enlarged_xyxy = region.xyxy.copy()
+    
+     # Get dimensions
+      width, height = region.unrotated_size[1], region.unrotated_size[0]
+    
+       # More selective horizontal bar detection with multiple criteria
+      is_horizontal_bar = False
+      if height > 0:  # Prevent division by zero
+          aspect_ratio = width / height
+          MIN_WIDTH_PIXELS = 50
+          MIN_HEIGHT_PIXELS = 8
+          MAX_HEIGHT_PIXELS = 30
         
-        # Check aspect ratio to identify horizontal bars
-        width, height = region.unrotated_size[1], region.unrotated_size[0]
-        is_horizontal_bar = width > height * 3
-        
-        # For horizontal bars, ensure font size is appropriate (double-check)
-        if is_horizontal_bar:
-            # Make sure font size is not too large for horizontal bars
-            max_font_size = int(height * 0.8)
-            if region.font_size > max_font_size:
-                region.font_size = max(12, max_font_size)
+          is_horizontal_bar = (
+              aspect_ratio > 5.0 and  # More stringent ratio threshold
+              width > MIN_WIDTH_PIXELS and
+              height >= MIN_HEIGHT_PIXELS and
+              height <= MAX_HEIGHT_PIXELS
+           )
+    
+       # For horizontal bars, ensure font size is appropriate (double-check)
+      if is_horizontal_bar:
+        # Make sure font size is not too large for horizontal bars
+        max_font_size = int(height * 0.8)
+        if region.font_size > max_font_size:
+            region.font_size = max(12, max_font_size)
 
     def update_enlarged_xyxy(region):
         region.enlarged_xyxy = region.xyxy.copy()

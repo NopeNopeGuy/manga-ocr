@@ -281,39 +281,47 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
         except (TypeError, ValueError):
             region.font_size = 20  # Increased for better readability
         
-        # Calculate aspect ratio
         width, height = region.unrotated_size[1], region.unrotated_size[0]
-        is_horizontal_bar = width > height * 3  # Text is likely in a horizontal bar
+    
+        aspect_ratio = width / height
+        MIN_WIDTH_PIXELS = 50
+        MIN_HEIGHT_PIXELS = 8
         
+        is_horizontal_bar = (
+        aspect_ratio > 4.0 and  # More stringent ratio threshold
+        width > MIN_WIDTH_PIXELS and
+        height >= MIN_HEIGHT_PIXELS 
+        )
+
         # Calculate area and character density with more balanced approach
         area = width * height
         char_count = len(region.translation.strip())
         
         if is_horizontal_bar:
             # For horizontal bars, use a font size that's more appropriate for the height
-            # Use approximately 70% of the height as the font size to ensure readability
+            # Use approximately 80% of the height as the font size to ensure readability
             try:
-                optimal_font_size = int(height * 0.7)
+                optimal_font_size = int(height * 0.8)
                 # But ensure it stays within reasonable bounds
-                region.font_size = max(14, min(optimal_font_size, 36))
+                region.font_size = max(12, optimal_font_size)
             except (TypeError, ValueError):
                 region.font_size = 20  # Increased for better readability
             logger.debug(f"Adjusted font size for horizontal bar: {region.font_size}")
         else:
             # For normal text boxes, use more balanced font sizes
-            region.font_size = min(region.font_size, 47)  # Increased maximum for normal text boxes
+            region.font_size = max(region.font_size, 54)  # Increased maximum for normal text boxes
             
             # More balanced approach to character density
             if char_count > 0 and area > 0:
                 # Estimate appropriate font size based on available area and text length
                 # Higher char_count should result in smaller font, but with a minimum
-                density_based_size = int(math.sqrt(area / (char_count * 0.9)))  # Less aggressive factor
+                density_based_size = int(math.sqrt(area / char_count))  # Less aggressive factor
                 density_based_size = max(14, density_based_size)  # Increased minimum
                 region.font_size = min(region.font_size, density_based_size)
                 
                 # Apply gentler reduction for crowded text boxes
                 if char_count > width / 10:  # Less aggressive threshold
-                    region.font_size = max(14, int(region.font_size * 0.95))  # Less aggressive reduction
+                    region.font_size = max(14, int(region.font_size))  # Less aggressive reduction
                     
             logger.debug(f"Normal text box size: {region.font_size}, chars: {char_count}, area: {area}")
 
