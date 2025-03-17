@@ -97,6 +97,10 @@ class MangaTranslatorLocal(MangaTranslator):
 
             translated_count = 0
             concurrency = params.get('concurrency', None)
+            try:
+                concurrency = int(concurrency)
+            except (ValueError, TypeError):
+                concurrency = 4
             semaphore = asyncio.Semaphore(concurrency)
             lock = asyncio.Lock()
 

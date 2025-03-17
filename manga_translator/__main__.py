@@ -51,6 +51,9 @@ async def dispatch(args: Namespace):
 
         else: # batch
             dest = args.dest
+            # Ensure concurrency is set
+            if 'concurrency' not in args_dict or args_dict['concurrency'] is None:
+                args_dict['concurrency'] = 4
             for path in natural_sort(args.input):
                     # Apply pre-translation dictionaries
                 await translator.translate_path(path, dest, args_dict)
