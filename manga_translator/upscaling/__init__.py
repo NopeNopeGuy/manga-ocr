@@ -32,7 +32,10 @@ async def prepare(upscaler_key: Upscaler):
 async def dispatch(upscaler_key: Upscaler, image_batch: List[Image.Image], upscale_ratio: int, device: str = 'cpu') -> List[Image.Image]:
     if upscale_ratio == 1:
         return image_batch
-    upscaler = get_upscaler(upscaler_key)
+    if upscaler_key not in UPSCALERS:
+        raise ValueError(f'Could not find upscaler for: "{upscaler_key}". Choose from the following: %s' % ','.join(UPSCALERS))
+    upscaler_class = UPSCALERS[upscaler_key]
+    upscaler = upscaler_class()
     if isinstance(upscaler, OfflineUpscaler):
         await upscaler.load(device)
     return await upscaler.upscale(image_batch, upscale_ratio)
