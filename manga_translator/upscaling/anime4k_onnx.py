@@ -46,8 +46,12 @@ class Anime4K_ONNXUpscaler(OfflineUpscaler, CommonUpscaler):
             img_np = np.expand_dims(img_np, axis=0)     # Add batch dimension
 
             ort_inputs = {self.input_name: img_np}
-            ort_outputs = self.ort_session.run([self.output_name], ort_inputs)
-            output_np = ort_outputs[0]
+            try:
+                ort_outputs = self.ort_session.run([self.output_name], ort_inputs)
+                output_np = ort_outputs[0]
+            except Exception as e:
+                print(f"Error during ONNX inference: {e}")
+                raise e
 
             output_np = np.squeeze(output_np, axis=0)  # Remove batch dimension
             output_np = np.transpose(output_np, (1, 2, 0))  # CHW to HWC
