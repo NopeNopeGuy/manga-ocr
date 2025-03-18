@@ -39,26 +39,8 @@ class AotInpainter(LamaMPEInpainter):
         if not hasattr(self, 'model'):
             raise Exception("Model not loaded yet. Call _load() first.")
 
-        # Define quantization configuration
-        qconfig = torch.quantization.get_default_qconfig('x86') # For CPU quantization
-
-        # Prepare model for quantization
-        model_to_quantize = self.model
-        model_prepared = torch.quantization.prepare(model_to_quantize, qconfig)
-
-        # Calibrate the prepared model (for post-training quantization)
-        # For simplicity, we'll use a dummy calibration step.
-        # In practice, you should use a representative dataset for calibration.
-        input_sample = torch.randn(1, 3, 256, 256) # Example input shape for image, adjust if needed
-        mask_sample = torch.randn(1, 1, 256, 256) # Example mask shape
-        model_prepared(input_sample, mask_sample) # Try passing as separate arguments - this might not work as prepare expects single input
-
-
-        # Convert to quantized model
-        model_quantized = torch.quantization.convert(model_prepared, inplace=False)
-
-        self.model = model_quantized
-        print("Model quantized to int8 successfully.")
+        self.model = self.model.half()
+        print("Model quantized to fp16 successfully.")
 
 
 def relu_nf(x):
