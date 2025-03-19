@@ -32,7 +32,7 @@ class AotInpainter(LamaMPEInpainter):
         if device.startswith('cuda') or device == 'mps':
             self.model.to(device)
         
-        # Quantize the model to int8
+        # Quantize the model to fp16
         self.quantize_model()
 
     def quantize_model(self):

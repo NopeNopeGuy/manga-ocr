@@ -83,8 +83,8 @@ def refine_mask(rgbimg, rawmask):
     d.addPairwiseGaussian(sxy=1, compat=3, kernel=dcrf.DIAG_KERNEL,
                             normalization=dcrf.NO_NORMALIZATION)
 
-    d.addPairwiseBilateral(sxy=20, srgb=10, rgbim=rgbimg,
-                        compat=15,
+    d.addPairwiseBilateral(sxy=10, srgb=5, rgbim=rgbimg,
+                        compat=10,
                         kernel=dcrf.DIAG_KERNEL,
                         normalization=dcrf.NO_NORMALIZATION)
     Q = d.inference(5)
@@ -92,7 +92,7 @@ def refine_mask(rgbimg, rawmask):
     crf_mask = np.array(res * 255, dtype=np.uint8)
     return crf_mask
 
-def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilateral], keep_threshold = 5e-3, dilation_offset = 0, kernel_size=3):
+def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilateral], keep_threshold = 1e-2, dilation_offset = 0, kernel_size=3):
     bboxes = [txtln.aabb.xywh for txtln in textlines]
     polys = [Polygon(txtln.pts) for txtln in textlines]
     
@@ -223,7 +223,7 @@ def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilater
         text_size = min(w1, h1, textlines[i].font_size)
         x1, y1, w1, h1 = extend_rect(x1, y1, w1, h1, img.shape[1], img.shape[0], int(text_size * 0.1))
         
-        dilate_size = max((int((text_size + dilation_offset) * 0.3) // 2) * 2 + 1, 3)
+        dilate_size = max((int((text_size + dilation_offset) * 0.2) // 2) * 2 + 1, 3)
         
         kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
         cc_region = np.ascontiguousarray(cc[y1: y1 + h1, x1: x1 + w1])
@@ -241,7 +241,7 @@ def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilater
     
     # Additional processing to connect any discontinuous line segments
     # Use a slightly larger kernel for final dilation to better connect elements
-    kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size + 2, kernel_size + 2))
+    kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
     dilated_mask = cv2.dilate(final_mask, kern)
     
     # Find gaps in vertical lines and fill them

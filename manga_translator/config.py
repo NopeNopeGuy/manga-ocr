@@ -76,6 +76,7 @@ class InpaintPrecision(str, Enum):
     fp32 = "fp32"
     fp16 = "fp16"
     bf16 = "bf16"
+    int8 = "int8"
 
     def __str__(self):
         return self.name
